@@ -1,0 +1,116 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+*.pyo
+*.pyd
+*.so
+build/
+dist/
+wheels/
+*.egg-info/
+*.egg
+.Python
+
+# Virtual environments
+.venv/
+.env
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables and secrets
+.env.local
+.env.development
+.env.test
+.env.production
+*.key
+*.pem
+*.p12
+*.pfx
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Data analysis outputs
+output/
+outputs/
+results/
+data/
+datasets/
+*.csv
+*.xlsx
+*.parquet
+*.pickle
+*.pkl
+*.h5
+*.hdf5
+
+# JSON files (but keep configuration files)
+*.json
+!*config*.json
+!package*.json
+!tsconfig*.json
+
+# Logs
+*.log
+logs/
+log/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# UV lock file (optional - some prefer to commit this)
+# uv.lock
+
+# MCP server specific
+*.mcp
+mcp_logs/
+
+# LangSmith/LangChain
+.langchain/
+.langsmith/
+
+# Model files (if you download any)
+*.bin
+*.safetensors
+models/
+
+# Cache directories
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation builds
+docs/_build/
+site/
