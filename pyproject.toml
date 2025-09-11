@@ -26,6 +26,8 @@ dependencies = [
     "grandalf>=0.8",
     "langchain-anthropic>=0.3.19",
     "langchain-groq>=0.3.7",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [dependency-groups]
