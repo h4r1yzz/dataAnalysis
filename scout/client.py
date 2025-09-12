@@ -9,7 +9,7 @@ same way by specifying the MCP server configuration in my_mcp/mcp_config.json.
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph
 from langchain_core.messages import HumanMessage, AIMessageChunk
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Tuple, Optional
 from scout.my_mcp.config import mcp_config
 from scout.graph import ScoutAgent, ScoutState
 
@@ -66,26 +66,65 @@ async def stream_graph_response(
             continue
 
 
+# Global variables to store the shared client and agent
+_shared_client: Optional[MultiServerMCPClient] = None
+_shared_agent_graph: Optional[StateGraph] = None
+
+
+async def initialize_scout_agent() -> Tuple[MultiServerMCPClient, StateGraph]:
+    """
+    Initialize the MCP client and Scout agent. Reuses existing instances if available.
+
+    Returns:
+        Tuple of (mcp_client, agent_graph)
+    """
+    global _shared_client, _shared_agent_graph
+
+    if _shared_client is None or _shared_agent_graph is None:
+        # Create the MCP client
+        _shared_client = MultiServerMCPClient(connections=mcp_config)
+
+        # Get tools from all connected servers
+        tools = await _shared_client.get_tools()
+
+        # Create Scout agent
+        agent = ScoutAgent(tools=tools)
+        _shared_agent_graph = agent.runnable
+
+        print("Scout agent initialized successfully")
+
+    return _shared_client, _shared_agent_graph
+
+
+async def cleanup_scout_agent():
+    """Clean up the shared MCP client and agent."""
+    global _shared_client, _shared_agent_graph
+
+    if _shared_client is not None:
+        try:
+            if hasattr(_shared_client, 'close'):
+                await _shared_client.close()
+            elif hasattr(_shared_client, 'cleanup'):
+                await _shared_client.cleanup()
+        except Exception as cleanup_error:
+            print(f"Warning: Error during client cleanup: {cleanup_error}")
+        finally:
+            _shared_client = None
+            _shared_agent_graph = None
+
+
 async def main():
     """
     Initialize the MCP client and run the agent conversation loop.
-
-    The MultiServerMCPClient allows connection to multiple MCP servers using a single client and config.
     """
-    client = None
     try:
-        # Create the MCP client (new API pattern for 0.1.0+)
-        client = MultiServerMCPClient(connections=mcp_config)
+        # Initialize the Scout agent
+        client, graph = await initialize_scout_agent()
 
-        # Get tools from all connected servers (now requires await)
-        tools = await client.get_tools()
-        agent = ScoutAgent(tools=tools)
-        graph = agent.runnable
-
-        # pass a config with a thread_id to use memory
+        # Pass a config with a thread_id to use memory
         graph_config = {
             "configurable": {
-                "thread_id": "2"
+                "thread_id": "cli_session"
             }
         }
 
@@ -111,17 +150,8 @@ async def main():
         print(f"Failed to initialize MCP client: {e}")
         print("Please check your configuration and environment variables.")
     finally:
-        # Clean up the client if it was created
-        if client is not None:
-            try:
-                # Note: Check if the client has a cleanup method
-                # The exact cleanup method may vary based on the client implementation
-                if hasattr(client, 'close'):
-                    await client.close()
-                elif hasattr(client, 'cleanup'):
-                    await client.cleanup()
-            except Exception as cleanup_error:
-                print(f"Warning: Error during client cleanup: {cleanup_error}")
+        # Clean up the Scout agent
+        await cleanup_scout_agent()
 
 if __name__ == "__main__":
     import asyncio

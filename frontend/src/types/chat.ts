@@ -2,6 +2,18 @@
  * TypeScript types for the Scout chat interface
  */
 
+export interface PlotlyData {
+  data: any[];
+  layout: any;
+  config?: any;
+}
+
+export interface VisualizationMetadata {
+  filename: string;
+  name: string;
+  created: Date;
+}
+
 export interface ChatMessage {
   id: string;
   type: 'user' | 'assistant' | 'tool_call' | 'error';
@@ -10,6 +22,7 @@ export interface ChatMessage {
   threadId?: string;
   toolName?: string; // For tool_call messages
   isStreaming?: boolean; // For assistant messages that are still being streamed
+  visualizations?: VisualizationMetadata[]; // For messages that contain visualizations
 }
 
 export interface ChatState {
@@ -40,4 +53,10 @@ export interface MessageProps {
 export interface ChatContainerProps {
   messages: ChatMessage[];
   isLoading?: boolean;
+}
+
+export interface PlotlyChartProps {
+  data: PlotlyData;
+  className?: string;
+  onError?: (error: Error) => void;
 }

@@ -5,79 +5,17 @@ Handles streaming responses and conversation state management.
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
-import asyncio
+from typing import Optional
 import json
 import uuid
-import re
+from pathlib import Path
 from contextlib import asynccontextmanager
 
-from scout.client import stream_graph_response
-from scout.graph import ScoutAgent, ScoutState
-from scout.my_mcp.config import mcp_config
-from langchain_mcp_adapters.client import MultiServerMCPClient
+from scout.client import stream_graph_response, initialize_scout_agent, cleanup_scout_agent
+from scout.graph import ScoutState
 from langchain_core.messages import HumanMessage
-
-
-def detect_visualization_data(content: str) -> tuple[str, dict | None]:
-    """
-    Detect if content contains Plotly visualization data and extract it.
-    Returns (cleaned_content, visualization_data)
-    """
-    import os
-
-    # Check for file references to JSON visualizations
-    if "output/" in content and ".json" in content:
-        # Look for file paths in the content
-        file_pattern = r'output/[^\s]+\.json'
-        matches = re.findall(file_pattern, content)
-
-        for file_path in matches:
-            if os.path.exists(file_path):
-                try:
-                    with open(file_path, 'r') as f:
-                        file_content = f.read()
-                        parsed = json.loads(file_content)
-                        if isinstance(parsed, dict) and "data" in parsed and "layout" in parsed:
-                            # Remove the file reference from content
-                            cleaned_content = content.replace(file_path, "").strip()
-                            return cleaned_content, parsed
-                except (json.JSONDecodeError, IOError):
-                    continue
-
-    # Look for JSON objects that might be Plotly figures
-    # They typically start with {"data": and contain "layout":
-    try:
-        # Find JSON-like structures in the content
-        json_pattern = r'\{[^{}]*"data"\s*:\s*\[[^\]]*\][^{}]*"layout"\s*:\s*\{[^{}]*\}[^{}]*\}'
-        matches = re.findall(json_pattern, content, re.DOTALL)
-
-        for match in matches:
-            try:
-                # Try to parse as JSON
-                parsed = json.loads(match)
-                if isinstance(parsed, dict) and "data" in parsed and "layout" in parsed:
-                    # This looks like a Plotly figure
-                    cleaned_content = content.replace(match, "").strip()
-                    return cleaned_content, parsed
-            except json.JSONDecodeError:
-                continue
-
-        # Also check if the entire content is a JSON visualization
-        if content.strip().startswith('{"data":') and '"layout":' in content:
-            try:
-                parsed = json.loads(content.strip())
-                if isinstance(parsed, dict) and "data" in parsed and "layout" in parsed:
-                    return "", parsed
-            except json.JSONDecodeError:
-                pass
-
-    except Exception:
-        pass
-
-    return content, None
 
 
 class ChatMessage(BaseModel):
@@ -96,37 +34,21 @@ mcp_client = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Initialize and cleanup the MCP client and agent."""
     global agent_graph, mcp_client
-    
+
     try:
-        # Initialize MCP client
-        mcp_client = MultiServerMCPClient(connections=mcp_config)
-        
-        # Get tools from all connected servers
-        tools = await mcp_client.get_tools()
-        
-        # Create Scout agent
-        scout_agent = ScoutAgent(tools=tools)
-        agent_graph = scout_agent.runnable
-        
-        print("Scout agent initialized successfully")
+        # Initialize Scout agent using shared functions from client.py
+        mcp_client, agent_graph = await initialize_scout_agent()
         yield
-        
+
     except Exception as e:
         print(f"Failed to initialize Scout agent: {e}")
         yield
     finally:
-        # Cleanup
-        if mcp_client:
-            try:
-                if hasattr(mcp_client, 'close'):
-                    await mcp_client.close()
-                elif hasattr(mcp_client, 'cleanup'):
-                    await mcp_client.cleanup()
-            except Exception as cleanup_error:
-                print(f"Warning: Error during client cleanup: {cleanup_error}")
+        # Clean up Scout agent
+        await cleanup_scout_agent()
 
 
 app = FastAPI(title="Scout Agent API", lifespan=lifespan)
@@ -134,7 +56,7 @@ app = FastAPI(title="Scout Agent API", lifespan=lifespan)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js dev server
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Next.js dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -175,7 +97,6 @@ async def chat_endpoint(chat_message: ChatMessage):
             input_state = ScoutState(messages=[HumanMessage(content=chat_message.message)])
 
             # Stream response from agent
-            accumulated_content = ""
             async for response_chunk in stream_graph_response(
                 input=input_state,
                 graph=agent_graph,
@@ -192,30 +113,13 @@ async def chat_endpoint(chat_message: ChatMessage):
                         # Send any remaining content after the tool call
                         remaining_content = response_chunk[response_chunk.find(">", start_idx) + 1:]
                         if remaining_content.strip():
-                            accumulated_content += remaining_content
+                            yield f"data: {json.dumps({'type': 'content', 'content': remaining_content})}\n\n"
                     else:
                         # Send as regular content if parsing fails
-                        accumulated_content += response_chunk
-                else:
-                    # Accumulate content to check for visualizations
-                    accumulated_content += response_chunk
-
-                    # Check if we have a complete visualization
-                    cleaned_content, viz_data = detect_visualization_data(accumulated_content)
-
-                    if viz_data:
-                        # Send any text content before the visualization
-                        if cleaned_content.strip():
-                            yield f"data: {json.dumps({'type': 'content', 'content': cleaned_content})}\n\n"
-
-                        # Send the visualization data
-                        yield f"data: {json.dumps({'type': 'visualization', 'visualization_data': viz_data})}\n\n"
-
-                        # Reset accumulated content
-                        accumulated_content = ""
-                    else:
-                        # Send regular content chunk
                         yield f"data: {json.dumps({'type': 'content', 'content': response_chunk})}\n\n"
+                else:
+                    # Send regular content
+                    yield f"data: {json.dumps({'type': 'content', 'content': response_chunk})}\n\n"
 
             # Send completion signal
             yield f"data: {json.dumps({'type': 'complete'})}\n\n"
@@ -242,6 +146,56 @@ async def get_conversation(thread_id: str):
     # This would require implementing conversation storage
     # For now, return a placeholder
     return {"thread_id": thread_id, "messages": []}
+
+
+@app.get("/visualizations/{filename}")
+async def get_visualization(filename: str):
+    """
+    Serve visualization JSON files from the output directory.
+
+    Args:
+        filename: The name of the visualization file (with or without .json extension)
+
+    Returns:
+        JSON response containing the Plotly visualization data
+    """
+    # Ensure filename has .json extension
+    if not filename.endswith('.json'):
+        filename += '.json'
+
+    # Construct the file path
+    file_path = Path("output") / filename
+
+    # Check if file exists
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Visualization '{filename}' not found"
+        )
+
+    try:
+        # Read and return the JSON file
+        with open(file_path, 'r') as f:
+            visualization_data = json.load(f)
+
+        return JSONResponse(
+            content=visualization_data,
+            headers={
+                "Cache-Control": "no-cache",
+                "Access-Control-Allow-Origin": "*",
+            }
+        )
+
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Invalid JSON format in visualization file '{filename}'"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reading visualization file: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

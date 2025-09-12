@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Image from "next/image";
 import { MessageBubble } from "./MessageBubble";
 import type { ChatContainerProps } from "@/types/chat";
 
@@ -22,8 +23,14 @@ export function ChatContainer({ messages, isLoading }: ChatContainerProps) {
       {messages.length === 0 ? (
         <div className="flex items-center justify-center h-full p-8">
           <div className="text-center space-y-6 max-w-2xl">
-            <div className="w-16 h-16 mx-auto rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-              <span className="text-2xl">🤖</span>
+            <div className="w-16 h-16 mx-auto flex items-center justify-center">
+              <Image
+                src="/text2query.png"
+                alt="Scout Agent Logo"
+                width={64}
+                height={64}
+                className="w-16 h-16 object-contain"
+              />
             </div>
             <div className="space-y-2">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome to Scout Agent</h2>
