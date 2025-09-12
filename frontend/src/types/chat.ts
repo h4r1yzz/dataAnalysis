@@ -53,6 +53,7 @@ export interface MessageProps {
 export interface ChatContainerProps {
   messages: ChatMessage[];
   isLoading?: boolean;
+  onSendMessage?: (message: string) => void;
 }
 
 export interface PlotlyChartProps {

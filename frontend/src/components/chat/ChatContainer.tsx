@@ -5,7 +5,7 @@ import Image from "next/image";
 import { MessageBubble } from "./MessageBubble";
 import type { ChatContainerProps } from "@/types/chat";
 
-export function ChatContainer({ messages, isLoading }: ChatContainerProps) {
+export function ChatContainer({ messages, isLoading, onSendMessage }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -14,6 +14,32 @@ export function ChatContainer({ messages, isLoading }: ChatContainerProps) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Example queries for the welcome cards
+  const exampleQueries = [
+    {
+      title: "📊 Data Analysis",
+      query: "Show me the top 5 creators by revenue"
+    },
+    {
+      title: "📈 Visualizations",
+      query: "Create a chart of sales trends over time"
+    },
+    {
+      title: "🔍 Insights",
+      query: "What are the key patterns in my data?"
+    },
+    {
+      title: "💡 Questions",
+      query: "Help me understand customer behavior"
+    }
+  ];
+
+  const handleExampleClick = (query: string) => {
+    if (onSendMessage) {
+      onSendMessage(query);
+    }
+  };
 
   return (
     <div
@@ -32,42 +58,27 @@ export function ChatContainer({ messages, isLoading }: ChatContainerProps) {
                 className="w-16 h-16 object-contain"
               />
             </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome to Scout Agent</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-lg">
-                Your intelligent data analysis assistant
-              </p>
-            </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-              <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors cursor-pointer">
-                <div className="text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">📊 Data Analysis</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  "Show me the top 5 creators by revenue"
+              {exampleQueries.map((example, index) => (
+                <div
+                  key={index}
+                  onClick={() => handleExampleClick(example.query)}
+                  className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors cursor-pointer"
+                >
+                  <div className="text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">
+                    {example.title}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    "{example.query}"
+                  </div>
                 </div>
-              </div>
-              <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors cursor-pointer">
-                <div className="text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">📈 Visualizations</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  "Create a chart of sales trends over time"
-                </div>
-              </div>
-              <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors cursor-pointer">
-                <div className="text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">🔍 Insights</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  "What are the key patterns in my data?"
-                </div>
-              </div>
-              <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors cursor-pointer">
-                <div className="text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">💡 Questions</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  "Help me understand customer behavior"
-                </div>
-              </div>
+              ))}
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Start by typing a question or click on one of the examples above
+              Click on an example above or type your own question below
             </p>
           </div>
         </div>

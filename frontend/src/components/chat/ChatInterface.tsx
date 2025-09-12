@@ -16,7 +16,11 @@ export function ChatInterface() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-hidden">
-        <ChatContainer messages={messages} isLoading={isLoading} />
+        <ChatContainer
+          messages={messages}
+          isLoading={isLoading}
+          onSendMessage={handleSendMessage}
+        />
       </div>
 
       <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
