@@ -4,18 +4,12 @@
 
 export interface ChatMessage {
   id: string;
-  type: 'user' | 'assistant' | 'tool_call' | 'error' | 'visualization';
+  type: 'user' | 'assistant' | 'tool_call' | 'error';
   content: string;
   timestamp: Date;
   threadId?: string;
   toolName?: string; // For tool_call messages
   isStreaming?: boolean; // For assistant messages that are still being streamed
-  visualizationData?: PlotlyFigure; // For visualization messages
-}
-
-export interface PlotlyFigure {
-  data: any[];
-  layout: any;
 }
 
 export interface ChatState {

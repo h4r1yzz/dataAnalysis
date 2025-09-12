@@ -122,22 +122,6 @@ export function useChatState() {
                     console.log(`Scout is using tool: ${eventData.tool_name}`);
                   }
                   break;
-
-                case 'visualization':
-                  // Handle visualization data
-                  if (eventData.visualization_data) {
-                    const vizMessage: ChatMessage = {
-                      id: crypto.randomUUID(),
-                      type: 'visualization',
-                      content: 'Generated visualization',
-                      timestamp: new Date(),
-                      threadId: currentThreadId,
-                      visualizationData: eventData.visualization_data
-                    };
-
-                    setMessages(prev => [...prev, vizMessage]);
-                  }
-                  break;
                 
                 case 'complete':
                   updateMessage(assistantMessageId, { isStreaming: false });
